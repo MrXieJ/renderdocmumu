@@ -32,8 +32,8 @@
     <OutputDirectory>$(SolutionDir)$(Platform)\$(Configuration)\</OutputDirectory>
     <SolutionRelativeIntDir>$(Platform)\$(Configuration)\obj\$(ProjectName)\</SolutionRelativeIntDir>
     <CharacterSet>Unicode</CharacterSet>
-    <PrimaryOutput>renderdocui</PrimaryOutput>
-    <TargetName>renderdocui</TargetName>
+    <PrimaryOutput>rendermumuui</PrimaryOutput>
+    <TargetName>rendermumuui</TargetName>
   </PropertyGroup>
   <PropertyGroup>
     <IntDir>$(SolutionDir)$(SolutionRelativeIntDir)</IntDir>

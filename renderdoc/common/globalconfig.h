@@ -150,8 +150,11 @@ enum
   RenderDoc_ForwardPortStride = 10,
 };
 
+// NOTE: the layer name must contain "renderdoc" - MuMu's hypervisor launches MuMuVMMHeadless with
+// VK_LOADER_LAYERS_DISABLE=~implicit~ plus VK_LOADER_LAYERS_ALLOW=*renderdoc*, so a layer named
+// anything else is filtered out by the loader and never gets loaded.
 #define RENDERDOC_VULKAN_LAYER_NAME "VK_LAYER_RENDERDOC_Capture"
-#define RENDERDOC_VULKAN_LAYER_VAR "ENABLE_VULKAN_RENDERDOC_CAPTURE"
+#define RENDERDOC_VULKAN_LAYER_VAR "ENABLE_VULKAN_RENDERMUMU_CAPTURE"
 
 #define RENDERDOC_ANDROID_LIBRARY "libVkLayer_GLES_RenderDoc.so"
 

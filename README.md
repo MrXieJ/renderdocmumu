@@ -1,74 +1,147 @@
-<p align="center"><img src="https://user-images.githubusercontent.com/661798/36482670-f81601c0-170b-11e8-8adb-2365b346ac27.png" /></p>
+# RenderMumu
 
-[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
-[![CI](https://github.com/baldurk/renderdoc/actions/workflows/ci.yml/badge.svg?branch=v1.x&event=push)](https://github.com/baldurk/renderdoc/actions)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](docs/CODE_OF_CONDUCT.md) 
+RenderDoc v1.46 改名版，用于捕获 MuMu 模拟器的 Vulkan 渲染进程 `MuMuVMMHeadless.exe`。
 
-RenderDoc is a frame-capture based graphics debugger, currently available for Vulkan, D3D11, D3D12, OpenGL, and OpenGL ES development on Windows, Linux, Android, and Nintendo Switch&trade;. It is completely open-source under the MIT license.
+上游项目：[baldurk/renderdoc](https://github.com/baldurk/renderdoc)（MIT，见 [LICENSE.md](LICENSE.md)）
 
-RenderDoc is intended for debugging your own programs only. Any discussion of capturing programs that you did not create will not be allowed in any official public RenderDoc setting, including the issue tracker, discord, or via email. For example this includes capturing commercial games that you did not create, or capturing Google Maps or Google Earth. Note: Capturing projects you created that use a third party engine like Unreal or Unity, or open source and free projects is completely fine and supported.
+---
 
-If you have any questions, suggestions or problems or you can [create an issue](https://github.com/baldurk/renderdoc/issues/new/choose) here on github, [email me directly](mailto:baldurk@baldurk.org) or come into [IRC](https://webchat.oftc.net/?channels=renderdoc) or [Discord](https://discord.gg/ahq6yRB) to discuss it.
+## 一、构建
 
-To install on windows run the appropriate installer for your OS ([64-bit](https://renderdoc.org/stable/latest/RenderDoc_latest_64.msi) | [32-bit](https://renderdoc.org/stable/latest/RenderDoc_latest_32.msi)) or download the portable zip from the [builds page](https://renderdoc.org/builds). The 64-bit windows build fully supports capturing from 32-bit programs. On linux only 64-bit x86 is supported - there is a precompiled [binary tarball](https://renderdoc.org/stable/latest/renderdoc_latest.tar.gz) available, or your distribution may package it. If not you can [build from source](docs/CONTRIBUTING/Compiling.md).
+**环境**：Visual Studio 2022（自动使用 v143 工具集，无需 v140）。Qt / Python / SWIG 已随源码树打包，无需额外安装。
 
-* **Downloads**: Stable and nightly builds: https://renderdoc.org/builds ( [Symbol server](https://renderdoc.org/symbols) )
-* **Documentation**: [HTML online](https://renderdoc.org/docs), [CHM in builds](https://renderdoc.org/docs/renderdoc.chm), [Videos](https://www.youtube.com/user/baldurkarlsson)
-* **Contact**: [baldurk@baldurk.org](mailto:baldurk@baldurk.org), [#renderdoc on OFTC IRC](https://webchat.oftc.net/?channels=renderdoc), [Discord server](https://discord.gg/ahq6yRB)
-* **Code of Conduct**: [Contributor Covenant](docs/CODE_OF_CONDUCT.md)
-* **Information for contributors**: [All contribution information](docs/CONTRIBUTING.md), [Compilation instructions](docs/CONTRIBUTING/Compiling.md)
-* **Community extensions**: [Extensions repository](https://github.com/baldurk/renderdoc-contrib)
+构建整个解决方案：
 
-Screenshots
---------------
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" `
+    "D:\RenderDocSource\renderdocmumu\renderdoc.sln" `
+    /p:Configuration=Release /p:Platform=x64 /m
+```
 
-| [ ![Texture view](https://renderdoc.org/fp/ts_screen1.jpg?2) ](https://renderdoc.org/fp/screen1.jpg) | [ ![Pixel history & shader debug](https://renderdoc.org/fp/ts_screen2.jpg?2) ](https://renderdoc.org/fp/screen2.png) |
-| --- | --- |
-| [ ![Mesh viewer](https://renderdoc.org/fp/ts_screen3.jpg?2) ](https://renderdoc.org/fp/screen3.png) | [ ![Pipeline viewer & constants](https://renderdoc.org/fp/ts_screen4.jpg?2) ](https://renderdoc.org/fp/screen4.png) |
+编译前需关闭模拟器和 `qrendermumu.exe`，否则 DLL 被占用会导致链接失败。
 
-API Support
---------------
+**产物**（`x64\Release\`）：
 
-|                          | Windows                  | Linux                    | Android                   |
-| ------------------------ | ------------------------ | ------------------------ | ------------------------  |
-| Vulkan                   | :heavy_check_mark:       | :heavy_check_mark:       | :heavy_check_mark:        |
-| OpenGL ES 2.0 - 3.2      | :heavy_check_mark:       | :heavy_check_mark:       | :heavy_check_mark:        |
-| OpenGL 3.2 - 4.6 Core    | :heavy_check_mark:       | :heavy_check_mark:       |  N/A                      |
-| D3D11 & D3D12            | :heavy_check_mark:       |  N/A                     |  N/A                      |
-| OpenGL 1.0 - 2.0 Compat  | :heavy_multiplication_x: | :heavy_multiplication_x: |  N/A                      |
-| D3D9 & 10                | :heavy_multiplication_x: |  N/A                     |  N/A                      |
-| Metal                    |  N/A                     |  N/A                     |  N/A                      |
+| 文件 | 说明 |
+|---|---|
+| `qrendermumu.exe` | UI 主程序 |
+| `rendermumu.dll` | 核心捕获引擎 |
+| `rendermumucmd.exe` | 命令行工具 |
+| `rendermumushim64.dll` | 全局 Hook shim |
+| `rendermumu.json` | Vulkan 层清单（构建时自动生成） |
 
-* Nintendo Switch&trade; support is distributed separately for authorized developers as part of the NintendoSDK. For more information, consult the Nintendo Developer Portal.
+---
 
-Downloads
---------------
+## 二、首次配置（一次性，需管理员）
 
-There are [binary releases](https://renderdoc.org/builds) available, built from the release targets. If you just want to use the program and you ended up here, this is what you want :).
+MuMu 的渲染进程由服务拉起，只能通过 Vulkan 隐式层捕获。
 
-It's recommended that if you're new you start with the stable builds. Nightly builds are available every day from the [v1.x branch here](https://renderdoc.org/builds#nightly) if you need it, but correspondingly may be less stable.
+### 1. 设置机器级环境变量
 
-Documentation
---------------
+```powershell
+[Environment]::SetEnvironmentVariable('ENABLE_VULKAN_RENDERMUMU_CAPTURE','1','Machine')
+```
 
-The text documentation is available [online for the latest stable version](https://renderdoc.org/docs/), as well as in [renderdoc.chm](https://renderdoc.org/docs/renderdoc.chm) in any build. It's built from [restructured text with sphinx](docs).
+**设置后需重启 Windows**，服务进程才能继承该变量。
 
-As mentioned above there are some [youtube videos](https://www.youtube.com/user/baldurkarlsson) showing the use of some basic features and an introduction/overview.
+### 2. 注册 Vulkan 层
 
-There is also a great presentation by [@Icetigris](https://twitter.com/Icetigris) which goes into some details of how RenderDoc can be used in real world situations: [slides are up here](https://docs.google.com/presentation/d/1LQUMIld4SGoQVthnhT1scoA3k4Sg0as14G4NeSiSgFU/edit#slide=id.p).
+在 `qrendermumu.exe` 中按提示注册即可。注册的是 JSON 的路径，修改 JSON 内容后无需重新注册。
 
-License
---------------
+### 3. 确认只注册了一个 `renderdoc` 层
 
-RenderDoc is released under the MIT license, see [LICENSE.md](LICENSE.md) for full text as well as 3rd party library acknowledgements.
+MuMu 只加载层名含 `renderdoc` 的 Vulkan 层。若注册了多个（如官方 RenderDoc、其它改版），加载器可能选错。
 
-Compiling
----------
+检查：
 
-Building RenderDoc is fairly straight forward on most platforms. See [Compiling.md](docs/CONTRIBUTING/Compiling.md) for more details.
+```powershell
+$k = Get-ItemProperty "HKLM:\SOFTWARE\Khronos\Vulkan\ImplicitLayers"
+$k.PSObject.Properties | Where-Object { $_.Name -match '\.json$' } | ForEach-Object {
+  if (Test-Path $_.Name) {
+    $j = Get-Content $_.Name -Raw | ConvertFrom-Json
+    "{0,-34} match={1,-6} {2}" -f $j.layer.name, ($j.layer.name -like '*renderdoc*'), $_.Name
+  }
+}
+```
 
-Contributing & Development
---------------
+`match=True` 的应只有一条，且指向本项目的 `x64\Release\rendermumu.json`。删除多余项：
 
-I've added some notes on how to contribute, as well as where to get started looking through the code in [Developing-Change.md](docs/CONTRIBUTING/Developing-Change.md). All contribution information is available under [CONTRIBUTING.md](docs/CONTRIBUTING.md).
+```powershell
+Remove-ItemProperty -Path "HKLM:\SOFTWARE\Khronos\Vulkan\ImplicitLayers" -Name "<json完整路径>"
+```
 
+恢复：
+
+```powershell
+New-ItemProperty -Path "HKLM:\SOFTWARE\Khronos\Vulkan\ImplicitLayers" -Name "<json完整路径>" -PropertyType DWord -Value 0
+```
+
+---
+
+## 三、抓帧
+
+1. 完全退出模拟器。
+2. 启动 `x64\Release\qrendermumu.exe`。
+3. 从 UI 启动 MuMu，进入游戏渲染画面。
+4. API 显示为 **Vulkan** 即可抓帧。
+
+确认层已加载：
+
+```powershell
+Get-Process MuMuVMMHeadless | ForEach-Object { $_.Modules | Where-Object { $_.ModuleName -match 'rendermumu' } }
+```
+
+日志位置：`%TEMP%\RenderMumu\`
+
+---
+
+## 四、注意事项
+
+修改以下内容会导致无法捕获或程序崩溃：
+
+| 项目 | 要求 |
+|---|---|
+| Vulkan 层名 | 必须为 `VK_LAYER_RENDERDOC_Capture`（MuMu 只放行含 `renderdoc` 的层名）。定义在 `renderdoc/common/globalconfig.h` 与 `renderdoc/renderdoc.vcxproj` 的 `VulkanLayerName`，两处需一致 |
+| `rendermumu.json` 的 `enable_environment` | 必须保留，否则捕获层会加载进 UI 自身导致崩溃 |
+| replay marker | `renderdoc_replay.h` 中定义端与 `RDOC_BASE_NAME` 派生的检测端必须一致，否则 UI 崩溃 |
+| `RENDERDOC_` 开头的 C API 导出符号 | 保持不变 |
+| C++ 命名空间、源码目录、`#include` 路径、`3rdparty/` | 保持不变 |
+
+层名与层的导出函数符号名是两套独立配置：层名为 `VK_LAYER_RENDERDOC_Capture`，导出符号为 `VK_LAYER_RENDERMUMU_Capture*`，两者在 JSON 中各自对应，不要统一。
+
+---
+
+## 五、常见问题
+
+| 现象 | 处理 |
+|---|---|
+| API 显示 `None`，日志无 VMMHeadless 记录 | 检查环境变量是否已设并重启过系统；检查层注册（第二节） |
+| VMMHeadless 加载了 `vulkan-1.dll` 但无 `rendermumu.dll` | 层名不含 `renderdoc`，或注册了多个同名层 |
+| UI 启动即崩溃 | 检查 `rendermumu.json` 的 `enable_environment` 是否存在 |
+| `LNK1181: breakpad_common.lib` | 需构建整个 `.sln`，不能单编 `renderdoc.vcxproj` |
+| `LNK1104: rendermumu.dll` | DLL 被占用，关闭模拟器和 qrendermumu |
+
+---
+
+## 六、改名对照
+
+核心 DLL 名由 `RDOC_BASE_NAME` 统一控制（`CMakeLists.txt` 与 `renderdoc/renderdoc.vcxproj`）。
+
+| 原名 | 改后 |
+|---|---|
+| `renderdoc.dll` | `rendermumu.dll` |
+| `qrenderdoc.exe` | `qrendermumu.exe` |
+| `renderdoccmd.exe` | `rendermumucmd.exe` |
+| `renderdocshim64.dll` | `rendermumushim64.dll` |
+| `renderdoc__replay__marker` | `rendermumu__replay__marker` |
+| `renderdocGLclass` | `rendermumuGLclass` |
+| `RenderDocGlobalHookData64/32` | `RenderMumuGlobalHookData64/32` |
+| `RENDERDOC_CRASHHANDLE` | `RENDERMUMU_CRASHHANDLE` |
+| `RenderDocBreakpadServer` | `RenderMumuBreakpadServer` |
+| `RenderDoc.RDCCapture.1` | `RenderMumu.RDCCapture.1` |
+| `%TEMP%\RenderDoc\` | `%TEMP%\RenderMumu\` |
+| `VK_LAYER_RENDERDOC_Capture*`（导出符号） | `VK_LAYER_RENDERMUMU_Capture*` |
+| `ENABLE_VULKAN_RENDERDOC_CAPTURE` | `ENABLE_VULKAN_RENDERMUMU_CAPTURE` |
+| 版本资源 ProductName `RenderDoc` | `RenderMumu` |
+
+Android、Linux/macOS、安装包（`util/installer`）、CI 与文档中的名称未改动，PC 端抓帧不涉及。

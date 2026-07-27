@@ -39,8 +39,8 @@
     <ATLMinimizesCRunTimeLibraryUsage>false</ATLMinimizesCRunTimeLibraryUsage>
     <CharacterSet>NotSet</CharacterSet>
     <ConfigurationType>Application</ConfigurationType>
-    <PrimaryOutput>qrenderdoc</PrimaryOutput>
-    <TargetName>qrenderdoc</TargetName>
+    <PrimaryOutput>qrendermumu</PrimaryOutput>
+    <TargetName>qrendermumu</TargetName>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <SolutionRelativeIntDir>$(Platform)\$(Configuration)\obj\$(ProjectName)\</SolutionRelativeIntDir>
   </PropertyGroup>
